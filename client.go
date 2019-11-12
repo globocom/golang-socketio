@@ -1,14 +1,17 @@
 package gosocketio
 
 import (
-	"github.com/graarh/golang-socketio/transport"
+	"fmt"
 	"strconv"
+
+	"github.com/graarh/golang-socketio/protocol"
+	"github.com/graarh/golang-socketio/transport"
 )
 
 const (
-	webSocketProtocol = "ws://"
+	webSocketProtocol       = "ws://"
 	webSocketSecureProtocol = "wss://"
-	socketioUrl       = "/socket.io/?EIO=3&transport=websocket"
+	socketioUrl             = "/socket.io/?EIO=3&transport=websocket"
 )
 
 /**
@@ -21,7 +24,7 @@ type Client struct {
 
 /**
 Get ws/wss url by host and port
- */
+*/
 func GetUrl(host string, port int, secure bool) string {
 	var prefix string
 	if secure {
@@ -32,6 +35,17 @@ func GetUrl(host string, port int, secure bool) string {
 	return prefix + host + ":" + strconv.Itoa(port) + socketioUrl
 }
 
+func GetUrlByHost(host string, secure bool) string {
+	var prefix string
+	if secure {
+		prefix = webSocketSecureProtocol
+	} else {
+		prefix = webSocketProtocol
+	}
+
+	return prefix + host + socketioUrl
+}
+
 /**
 connect to host and initialise socket.io protocol
 
@@ -40,7 +54,7 @@ ws://myserver.com/socket.io/?EIO=3&transport=websocket
 
 You can use GetUrlByHost for generating correct url
 */
-func Dial(url string, tr transport.Transport) (*Client, error) {
+func Dial(url string, namespace string, tr transport.Transport) (*Client, error) {
 	c := &Client{}
 	c.initChannel()
 	c.initMethods()
@@ -50,6 +64,9 @@ func Dial(url string, tr transport.Transport) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	nspMsg := fmt.Sprintf("4%d%s", protocol.MessageTypeOpen, namespace)
+	c.conn.WriteMessage(nspMsg)
 
 	go inLoop(&c.Channel, &c.methods)
 	go outLoop(&c.Channel, &c.methods)
